@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         JHS-enhance
 // @namespace    JHS-enhance
-// @version      3.3.11
+// @version      3.3.13
 // @author       xiebro,fireinrain
 // @description  Jav-鉴黄师 增强脚本。列表页：作品状态标签、一键筛选、新作品检测、演员黑名单过滤；详情页：磁力链接高亮、DMM 多画质预览视频、标题翻译、整合字幕搜索（迅雷+SubTitleCat）并支持 115 直传、多源预览图（javfree/projectjav/javstore）含来源切换；数据：115 网盘目录匹配与多目录选择、云盘备份/恢复、跨 Tab 同步；其他：自动翻页、分类折叠、Top250、以图识图、热门榜单、评论查看、相关清单。支持 JavDB / JavBus / JavSee / SeeJav / FC2 / JavTrailers
 // @license      MIT
@@ -283,6 +283,16 @@ System.register("./__entry.js", ['jquery', 'localforage', 'toastify-js', 'blueim
                 id: "video-mmb",
                 quality: "mmb",
                 text: "中画质 (432p)",
+                canSelect: true
+            }, {
+                id: "video-dm",
+                quality: "dm",
+                text: "低画质 (1000kbps)",
+                canSelect: true
+            }, {
+                id: "video-dmb",
+                quality: "dmb",
+                text: "中画质 (1500kbps)",
                 canSelect: true
             }, {
                 id: "video-mhb",
@@ -10267,191 +10277,56 @@ ${err.stack}` : "");
           videoEl._hls = null;
         }
       };
-      const JAVXY_TOKEN = [118, 119, 112, 71, 97, 110, 28, 84, 124, 65, 76, 102, 65, 16, 77, 109, 64, 82, 85, 83, 67, 92, 125, 108, 83, 65, 124, 107, 84, 104, 71, 84, 17, 124, 118, 125, 104, 8, 125, 96, 112, 103, 29, 18, 82, 83, 87, 84].map((v) => String.fromCharCode(v ^ 37)).join("");
-      const JAVXY_ENDPOINTS = [
-          {host: String.fromCharCode(106, 97, 118, 120, 121, 46, 99, 99, 46, 99, 100), label: "Javxy"},
-        {
-          host: String.fromCharCode(119, 111, 114, 107, 101, 114, 46, 106, 97, 118, 120, 121, 46, 99, 99, 46, 99, 100),
-          label: "Javxy Worker"
-        }
-      ];
-      const JAVXY_SOURCE_LABELS = {
-        "Tokyo-Hot": "Javxy | Tokyo-Hot",
-        FC2: "Javxy | FC2",
-        Direct: "Javxy | Direct",
-        DMM: "Javxy | dmm",
-        MGStage: "Javxy | MGStage",
-        DUGA: "Javxy | DUGA",
-        MYWIFE: "Javxy | MyWife",
-        JavTrailers: "Javxy | JavTrailers",
-        JavDB: "Javxy | Javdb",
-        AVWikiDB: "Javxy | AVWikiDB",
-        JAVDatabase: "Javxy | JAVDatabase",
-        HEYZO: "Javxy | Heyzo",
-        HeyDouga: "Javxy | HeyDouga",
-        PACO: "Javxy | Paco",
-        "10MU": "Javxy | 10mu",
-        Caribbean: "Javxy | 加勒比",
-        "1Pondo": "Javxy | 一本道"
-      };
-      const JAVXY_QUALITY_OPTIONS = [
-          {quality: "4k", text: "4K"},
-          {quality: "hhb", text: "1080p"},
-          {quality: "1080p", text: "1080p"},
-          {quality: "hmb", text: "720p"},
-          {quality: "720p", text: "720p"},
-          {quality: "mhb", text: "576p"},
-          {quality: "540p", text: "540p"},
-          {quality: "mmb", text: "432p"},
-          {quality: "480p", text: "480p"},
-          {quality: "396p", text: "396p"},
-          {quality: "360p", text: "360p"},
-          {quality: "240p", text: "240p"}
-      ];
-      const selectHighestQuality = (qualityMap) => {
-        const rank = new Map(JAVXY_QUALITY_OPTIONS.map((item, index) => [item.quality, index]));
-        return Object.keys(qualityMap || {}).filter((key) => qualityMap[key]).sort((a, b) => (rank.get(a) ?? -1) - (rank.get(b) ?? -1))[0] || null;
-      };
-      const sortQualityKeys = (qualityMap) => {
-        const rank = new Map(JAVXY_QUALITY_OPTIONS.map((item, index) => [item.quality, index]));
-        return Object.keys(qualityMap || {}).filter((key) => qualityMap[key]).sort((a, b) => (rank.get(a) ?? -1) - (rank.get(b) ?? -1));
-      };
-      const normalizeJavxySource = (value) => {
-        const raw = String(value || "").trim().toLowerCase();
-        if (raw.includes("fc2")) return "FC2";
-        if (raw.includes("mgstage")) return "MGStage";
-        if (raw.includes("heydouga")) return "Direct";
-        if (raw.includes("mywife")) return "MYWIFE";
-        if (raw.includes("duga")) return "DUGA";
-        if (raw.includes("javtrailers")) return "JavTrailers";
-        if (raw.includes("javdb")) return "JavDB";
-        if (raw.includes("avwikidb")) return "AVWikiDB";
-        if (raw.includes("javdatabase")) return "JAVDatabase";
-        if (raw.includes("dmm")) return "DMM";
-        if (raw === "direct" || raw.includes("heyzo") || raw.includes("heydouga") || raw.includes("paco") || raw.includes("10musume") || raw.includes("10mu") || raw.includes("1pondo") || raw.includes("caribbean") || raw.includes("tokyo-hot") || raw.includes("tokyohot")) return "Direct";
-        return String(value || "").trim();
-      };
-      const javxyQualityMapToDmmFormat = (javxyQualityMap) => {
-        const result = {};
-        const qualityKeys = qualityOptions.map((o) => o.quality);
-        for (const [key, url] of Object.entries(javxyQualityMap || {})) {
-          if (!url) continue;
-          const lowerKey = key.toLowerCase();
-          if (qualityKeys.includes(key)) {
-            result[key] = url;
-          } else if (qualityKeys.includes(lowerKey)) {
-            result[lowerKey] = url;
-          }
-        }
-        return result;
-      };
-      const fromJavxyCcCd = async (id, rawCode = "", options = {}) => {
-        const query = String(id || rawCode || "").trim();
-        if (!query) {
-          clog.debug("Javxy 跳过：查询词为空");
-          return null;
-        }
-        for (const endpoint of JAVXY_ENDPOINTS) {
-            const params = new URLSearchParams({client: "laosiji-new"});
-          if (Array.isArray(options.skip) && options.skip.length) params.set("skip", options.skip.join(","));
-          if (Array.isArray(options.prefer) && options.prefer.length) params.set("prefer", options.prefer.join(","));
-          if (Array.isArray(options.source) && options.source.length) params.set("source", options.source.join(","));
-          if (options.playbackFallback) params.set("purpose", "playback-fallback");
-          const apiUrl2 = `https://${endpoint.host}/trailers/${encodeURIComponent(query)}?${params}`;
-            clog.debug("Javxy 请求 API", {query, apiUrl: apiUrl2, endpoint: endpoint.label});
-          let r;
-          try {
-            r = await gmHttp.get(apiUrl2, null, {
-              "Accept": "application/json,text/plain,*/*",
-              "X-Javxy-Token": JAVXY_TOKEN
-            }, {timeout: 8e3});
-          } catch (e) {
-              clog.debug("Javxy API 网络失败，尝试下一个节点", {endpoint: endpoint.label, error: e.message});
-            continue;
-          }
-          if (!r) {
-              clog.debug("Javxy API 无响应，尝试下一个节点", {endpoint: endpoint.label});
-            continue;
-          }
-          const trailerUrl = String((r == null ? void 0 : r.trailer) || "").trim();
-          if (!trailerUrl) {
-              clog.debug("Javxy 无 trailer 字段", {endpoint: endpoint.label, keys: Object.keys(r || {})});
-            return null;
-          }
-          const qualityMap = (r == null ? void 0 : r.qualities) && typeof r.qualities === "object" ? r.qualities : {};
-          const quality = (r == null ? void 0 : r.quality) && qualityMap[r.quality] ? r.quality : selectHighestQuality(qualityMap);
-          const sourceBase = JAVXY_SOURCE_LABELS[r == null ? void 0 : r.source] || `Javxy | ${(r == null ? void 0 : r.source) || "dmm"}`;
-          const directUrl = qualityMap[quality] || trailerUrl;
-          clog.debug("Javxy 返回结果", {
-            endpoint: endpoint.label,
-            source: r == null ? void 0 : r.source,
-            quality,
-            qualities: Object.keys(qualityMap),
-            url: directUrl
-          });
-          const dmmQualityMap = javxyQualityMapToDmmFormat(qualityMap);
-          return {
-            url: directUrl,
-            source: sourceBase,
-            type: String((r == null ? void 0 : r.type) || "").trim() || "video",
-            qualities: qualityMap,
-            quality,
-            directUrl,
-            code: id,
-            rawCode,
-            javxySource: String((r == null ? void 0 : r.source) || "").trim(),
-            requiresJP: Boolean(r == null ? void 0 : r.requiresJP),
-            urls: Array.isArray(r == null ? void 0 : r.urls) && r.urls.length ? r.urls : sortQualityKeys(qualityMap).map((key) => qualityMap[key]),
-            dmmQualityMap
-          };
-        }
-        return null;
-      };
-      const fallbackJavxyResult = async (code, rawCode = "", failedSources = [], options = {}) => {
-        const skip = [...new Set((failedSources || []).map((source2) => normalizeJavxySource(source2)).filter(Boolean))];
-        const source = [...new Set((options.source || []).map((s) => String(s || "").trim()).filter(Boolean))];
-        if (!skip.length && !source.length) return null;
-          clog.debug("Javxy 播放失败回落查询", {code, skip, source});
-          return fromJavxyCcCd(code, rawCode, {skip, source, playbackFallback: true});
-      };
-      const getJavxyVideoUrls = async (code, failedSources = []) => {
-        const result = await fallbackJavxyResult(code, code, failedSources, {
-          source: ["JavTrailers", "JavDB"]
-        });
-        if ((result == null ? void 0 : result.dmmQualityMap) && Object.keys(result.dmmQualityMap).length > 0) {
-          return result.dmmQualityMap;
-        }
-        if (result == null ? void 0 : result.url) {
-          const qualityMap = {};
-          qualityMap["720p"] = result.url;
-          return qualityMap;
-        }
-        return null;
-      };
-        const getJavxyCover = async (code) => {
+        const COVER_API_URL = [77, 81, 81, 85, 86, 31, 10, 10, 68, 85, 76, 8, 65, 72, 72, 87, 86, 70, 11, 20, 22, 20, 17, 22, 22, 11, 93, 92, 95, 10, 68, 85, 76, 10, 70, 74, 83, 64, 87].map((v) => String.fromCharCode(v ^ 37)).join("");
+        const TRAILER_API_URL = [77, 81, 81, 85, 86, 31, 10, 10, 68, 85, 76, 8, 65, 72, 72, 87, 86, 70, 11, 20, 22, 20, 17, 22, 22, 11, 93, 92, 95, 10, 68, 85, 76, 10, 81, 87, 68, 76, 73, 64, 87].map((v) => String.fromCharCode(v ^ 37)).join("");
+        const BASE_URL = [77, 81, 81, 85, 86, 31, 10, 10, 68, 85, 76, 8, 65, 72, 72, 87, 86, 70, 11, 20, 22, 20, 17, 22, 22, 11, 93, 92, 95].map((v) => String.fromCharCode(v ^ 37)).join("");
+        const COVER_API_TOKEN = [18, 28, 19, 19, 65, 65, 70, 28, 64, 29, 23, 21, 17, 29, 67, 70, 18, 64, 21, 22, 64, 16, 65, 29, 22, 19, 16, 28, 16, 17, 64, 29].map((v) => String.fromCharCode(v ^ 37)).join("");
+        const getCover = async (code) => {
+            var _a;
             const query = String(code || "").trim();
             if (!query) return null;
-            for (const endpoint of JAVXY_ENDPOINTS) {
-                const params = new URLSearchParams({client: "laosiji-new"});
-                const apiUrl2 = `https://${endpoint.host}/covers/${encodeURIComponent(query)}?${params}`;
-                let r;
-                try {
-                    r = await gmHttp.get(apiUrl2, null, {
-                        "Accept": "application/json,text/plain,*/*",
-                        "X-Javxy-Token": JAVXY_TOKEN
-                    }, {timeout: 15e3});
-                } catch (e) {
-                    continue;
-                }
-                if (!r) continue;
-                if ((r == null ? void 0 : r.found) && (r.url || r.cover || r.highCover)) return r;
+            try {
+                const r = await gmHttp.get(`${COVER_API_URL}/${encodeURIComponent(query)}`, null, {
+                    "Authorization": `Bearer ${COVER_API_TOKEN}`
+                }, {timeout: 15e3});
+                if ((_a = r == null ? void 0 : r.cover) == null ? void 0 : _a.large) {
+                    return r.cover.large;
+          }
+          return null;
+            } catch (e) {
+                clog.error("获取封面失败:", e.message);
                 return null;
             }
-            return null;
       };
-      class JavxyPreviewVideoPlugin extends BasePlugin {
+        const getTrailer = async (code) => {
+            const query = String(code || "").trim();
+            if (!query) return null;
+            try {
+                const r = await gmHttp.get(`${TRAILER_API_URL}/${encodeURIComponent(query)}`, null, {
+                    "Authorization": `Bearer ${COVER_API_TOKEN}`
+                }, {timeout: 15e3});
+                if ((r == null ? void 0 : r.trailers) && Array.isArray(r.trailers) && r.trailers.length > 0) {
+                    const qualityMap = {};
+                    r.trailers.forEach((item) => {
+                        if (item.proxy && item.quality) {
+                            qualityMap[item.quality] = `${BASE_URL}${item.proxy}`;
+                        }
+                    });
+                    if (Object.keys(qualityMap).length > 0) {
+                        clog.log("预告片播放地址:", JSON.stringify(qualityMap));
+                        return qualityMap;
+                    }
+                }
+                return null;
+            } catch (e) {
+                clog.error("获取预告片失败:", e.message);
+                return null;
+            }
+      };
+
+        class JavopenPreviewVideoPlugin extends BasePlugin {
         getName() {
-          return "JavxyPreviewVideoPlugin";
+            return "JavopenPreviewVideoPlugin";
         }
         _attachVideoSrc(videoEl, src) {
           if (!videoEl || !src) return;
@@ -10461,20 +10336,13 @@ ${err.stack}` : "");
             if (HlsClass) {
               attachHlsToVideo(videoEl, src).catch((err) => {
                 clog.error("视频预览 HLS 加载失败:", err);
-                videoEl.src = src;
-                videoEl.load && videoEl.load();
               });
             } else {
               loadHlsLibrary().then((HlsClass2) => {
                 if (videoEl && videoEl.isConnected && HlsClass2) {
                   attachHlsToVideo(videoEl, src).catch((err) => {
                     clog.error("视频预览 HLS 延迟加载失败:", err);
-                    videoEl.src = src;
-                    videoEl.load && videoEl.load();
                   });
-                } else if (videoEl && videoEl.isConnected) {
-                  videoEl.src = src;
-                  videoEl.load && videoEl.load();
                 }
               });
             }
@@ -10493,38 +10361,38 @@ ${err.stack}` : "");
         }
         async initCss() {
           return `
-            .jhs-javxy-video-modal {
+            .jhs-javopen-video-modal {
                 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
                 background: rgba(0,0,0,0.95); z-index: 12345700;
                 display: flex; justify-content: center; align-items: center;
                 opacity: 0; visibility: hidden; transition: opacity 0.2s;
             }
-            .jhs-javxy-video-modal.is-open { opacity: 1; visibility: visible; }
-            .jhs-javxy-video-modal-inner {
+            .jhs-javopen-video-modal.is-open { opacity: 1; visibility: visible; }
+            .jhs-javopen-video-modal-inner {
                 display: flex; flex-direction: column; align-items: center;
                 gap: 12px; max-width: 90vw; max-height: 90vh;
             }
-            .jhs-javxy-video-wrapper {
+            .jhs-javopen-video-wrapper {
                 width: 80vw; max-height: 80vh; aspect-ratio: 16/9;
                 background: #000; position: relative;
             }
-            .jhs-javxy-video-wrapper video {
+            .jhs-javopen-video-wrapper video {
                 position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             }
-            .jhs-javxy-quality-bar {
+            .jhs-javopen-quality-bar {
                 display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
             }
-            .jhs-javxy-quality-btn {
+            .jhs-javopen-quality-btn {
                 min-width: 60px; padding: 5px 10px; font-size: 13px;
                 background: rgba(255,255,255,0.2); color: #fff;
                 border: 1px solid rgba(255,255,255,0.5); border-radius: 4px;
                 cursor: pointer; transition: background 0.2s;
             }
-            .jhs-javxy-quality-btn:hover { background: rgba(255,255,255,0.4); }
-            .jhs-javxy-quality-btn.active {
+            .jhs-javopen-quality-btn:hover { background: rgba(255,255,255,0.4); }
+            .jhs-javopen-quality-btn.active {
                 background: #1890ff; border-color: #096dd9; font-weight: bold;
             }
-            .jhs-javxy-loading {
+            .jhs-javopen-loading {
                 color: #fff; font-size: 16px; text-align: center;
             }
         `;
@@ -10533,9 +10401,10 @@ ${err.stack}` : "");
           if (!window.isDetailPage) return;
           const carNum2 = this.getPageInfo().carNum;
           if (!carNum2) return;
-          this._addJavxyButton(carNum2);
+            this._addJavopenButton(carNum2);
         }
-        _addJavxyButton(carNum2) {
+
+            _addJavopenButton(carNum2) {
           let $target = null;
           if (isJavDb$1) {
             $target = $('a[title="複製番號"]');
@@ -10563,30 +10432,31 @@ ${err.stack}` : "");
             e.stopPropagation();
             $btn.css("pointer-events", "none").find("span").text("...");
             try {
-              await this._openJavxyPlayer(carNum2);
+                await this._openJavopenPlayer(carNum2);
             } finally {
               $btn.css("pointer-events", "").find("span").text("视频预览");
             }
           });
           $target.after($btn);
         }
-        async _openJavxyPlayer(carNum2) {
-          if ($("#jhs-javxy-video-modal").length === 0) {
+
+            async _openJavopenPlayer(carNum2) {
+                if ($("#jhs-javopen-video-modal").length === 0) {
             $("body").append(`
-                <div id="jhs-javxy-video-modal" class="jhs-javxy-video-modal">
-                    <div class="jhs-javxy-video-modal-inner">
-                        <div class="jhs-javxy-video-wrapper">
-                            <video id="jhs-javxy-video" controls playsinline></video>
+                <div id="jhs-javopen-video-modal" class="jhs-javopen-video-modal">
+                    <div class="jhs-javopen-video-modal-inner">
+                        <div class="jhs-javopen-video-wrapper">
+                            <video id="jhs-javopen-video" controls playsinline></video>
                         </div>
-                        <div class="jhs-javxy-quality-bar"></div>
+                        <div class="jhs-javopen-quality-bar"></div>
                     </div>
                 </div>
             `);
-            const $modal2 = $("#jhs-javxy-video-modal");
+                    const $modal2 = $("#jhs-javopen-video-modal");
             $modal2.on("click", (e) => {
-              if (e.target.id === "jhs-javxy-video-modal") {
+                if (e.target.id === "jhs-javopen-video-modal") {
                 $modal2.removeClass("is-open");
-                const videoEl2 = document.getElementById("jhs-javxy-video");
+                    const videoEl2 = document.getElementById("jhs-javopen-video");
                 if (videoEl2) {
                   destroyHls(videoEl2);
                   videoEl2.pause();
@@ -10596,7 +10466,7 @@ ${err.stack}` : "");
             $(document).on("keydown", (e) => {
               if (e.key === "Escape" && $modal2.hasClass("is-open")) {
                 $modal2.removeClass("is-open");
-                const videoEl2 = document.getElementById("jhs-javxy-video");
+                  const videoEl2 = document.getElementById("jhs-javopen-video");
                 if (videoEl2) {
                   destroyHls(videoEl2);
                   videoEl2.pause();
@@ -10604,30 +10474,30 @@ ${err.stack}` : "");
               }
             });
           }
-          const $modal = $("#jhs-javxy-video-modal");
-          const $wrapper = $modal.find(".jhs-javxy-video-wrapper");
-          const $qualityBar = $modal.find(".jhs-javxy-quality-bar");
-          $wrapper.html('<div class="jhs-javxy-loading">视频预览加载中...</div>');
+                const $modal = $("#jhs-javopen-video-modal");
+                const $wrapper = $modal.find(".jhs-javopen-video-wrapper");
+                const $qualityBar = $modal.find(".jhs-javopen-quality-bar");
+                $wrapper.html('<div class="jhs-javopen-loading">视频预览加载中...</div>');
           $qualityBar.empty();
           $modal.addClass("is-open");
           let videoMap = null;
           try {
-            videoMap = await getJavxyVideoUrls(carNum2);
+              videoMap = await getTrailer(carNum2);
           } catch (err) {
-            $wrapper.html(`<div class="jhs-javxy-loading">视频预览请求失败: ${err.message}</div>`);
+              $wrapper.html(`<div class="jhs-javopen-loading">视频预览请求失败: ${err.message}</div>`);
             return;
           }
           if (!videoMap || Object.keys(videoMap).length === 0) {
-            $wrapper.html('<div class="jhs-javxy-loading">未找到可用的视频源</div>');
+              $wrapper.html('<div class="jhs-javopen-loading">未找到可用的视频源</div>');
             return;
           }
           const qualityList = Object.keys(videoMap);
           const defaultQuality = this._selectDefaultQuality(qualityList, "720p");
           const defaultUrl = videoMap[defaultQuality];
-          $wrapper.html(`<video id="jhs-javxy-video" controls playsinline>
+                $wrapper.html(`<video id="jhs-javopen-video" controls playsinline>
             <source src="${defaultUrl}" />
         </video>`);
-          const videoEl = document.getElementById("jhs-javxy-video");
+                const videoEl = document.getElementById("jhs-javopen-video");
           if (!videoEl) return;
           if (isM3U8Url(defaultUrl)) {
             this._attachVideoSrc(videoEl, defaultUrl);
@@ -10636,12 +10506,12 @@ ${err.stack}` : "");
           qualityOptions.forEach((option) => {
             const url = videoMap[option.quality];
             if (url) {
-              buttonsHtml += `<button class="jhs-javxy-quality-btn${option.quality === defaultQuality ? " active" : ""}"
+                buttonsHtml += `<button class="jhs-javopen-quality-btn${option.quality === defaultQuality ? " active" : ""}"
                     data-quality="${option.quality}" data-video-src="${url}">${option.text}</button>`;
             }
           });
           $qualityBar.html(buttonsHtml);
-          $qualityBar.off("click").on("click", ".jhs-javxy-quality-btn", (e) => {
+                $qualityBar.off("click").on("click", ".jhs-javopen-quality-btn", (e) => {
             const $btn = $(e.currentTarget);
             if ($btn.hasClass("active")) return;
             const src = $btn.attr("data-video-src");
@@ -10654,7 +10524,7 @@ ${err.stack}` : "");
             }
             videoEl.play().catch(() => {
             });
-            $qualityBar.find(".jhs-javxy-quality-btn").removeClass("active");
+                    $qualityBar.find(".jhs-javopen-quality-btn").removeClass("active");
             $btn.addClass("active");
           });
           videoEl.play().catch((e) => console.warn("视频预览播放失败:", e));
@@ -12649,11 +12519,18 @@ ${err.stack}` : "");
           }));
         }
         async bus115Down() {
+            const $headerRow = $("#magnet-table tr").first();
           $("#magnet-table tr").each(((i, row) => {
+              if (row === $headerRow[0]) return;
             const magnetLink = $(row).find("td:nth-child(1) a").attr("href");
             if (magnetLink && magnetLink.includes("magnet:")) {
               const actionCell = $("<td>").addClass("action-cell");
-              $("<button>").text("115离线下载").addClass("button is-info is-small").click((async (event) => {
+                $("<button>").text("验车").addClass("button is-small").attr("style", "background-color:#2b6cb0 !important;color:#fff !important;border:none !important;margin-right:4px;cursor:pointer;border-radius:4px;font-size:12px;padding:2px 8px;").click(((event) => {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    this.getBean("MagnetHubPlugin").checkWhatslink(magnetLink);
+                })).appendTo(actionCell);
+                $("<button>").text("115离线下载").addClass("button is-small").attr("style", "background-color:#4a90e2 !important;color:#fff !important;border:none !important;cursor:pointer;border-radius:4px;font-size:12px;padding:2px 8px;").click((async (event) => {
                 event.stopPropagation();
                 event.preventDefault();
                 let loadObj = loading();
@@ -12666,15 +12543,12 @@ ${err.stack}` : "");
                   loadObj.close();
                 }
               })).appendTo(actionCell);
-                $("<button>").text("验车").addClass("button is-info is-small").click(((event) => {
-                    event.stopPropagation();
-                    event.preventDefault();
-                    this.getBean("MagnetHubPlugin").checkWhatslink(magnetLink);
-              })).appendTo(actionCell);
               $(row).append(actionCell);
             }
           }));
-          $("#magnet-table tbody").length > 0 && $("#magnet-table tbody tr").append($("<td>").text("操作"));
+            if ($headerRow.find("td, th").last().text().trim() !== "操作") {
+                $headerRow.append($("<td>").text("操作"));
+            }
         }
         async getSavePathId(nyName) {
           let savePath115 = await storageManager.getSetting("savePath115", "云下载");
@@ -15720,14 +15594,9 @@ ${err.stack}` : "");
                 const $btn = $("#downloadCoverBtn");
                 $btn.addClass("is-loading").prop("disabled", true);
                 try {
-                    const coverData = await getJavxyCover(carNum2);
-                    if (!coverData) {
-                        show.error("未找到高清封面");
-                        return;
-                    }
-                    const coverUrl = coverData.url || coverData.highCover || coverData.cover;
+                    const coverUrl = await getCover(carNum2);
                     if (!coverUrl) {
-                        show.error("封面链接为空");
+                        show.error("未找到高清封面");
                         return;
                     }
                     const fileName = `${carNum2}-cover.jpg`;
@@ -18514,7 +18383,7 @@ ${err.stack}` : "");
           pluginManager2.register(DetailPageButtonPlugin);
           pluginManager2.register(HighlightMagnetPlugin);
           pluginManager2.register(PreviewVideoPlugin);
-          pluginManager2.register(JavxyPreviewVideoPlugin);
+            pluginManager2.register(JavopenPreviewVideoPlugin);
           pluginManager2.register(FilterTitleKeywordPlugin);
           pluginManager2.register(ActressInfoPlugin);
           pluginManager2.register(OtherSitePlugin);
@@ -18545,7 +18414,7 @@ ${err.stack}` : "");
           pluginManager2.register(FilterTitleKeywordPlugin);
           pluginManager2.register(HighlightMagnetPlugin);
           pluginManager2.register(BusPreviewVideoPlugin);
-          pluginManager2.register(JavxyPreviewVideoPlugin);
+            pluginManager2.register(JavopenPreviewVideoPlugin);
           pluginManager2.register(MagnetHubPlugin);
           pluginManager2.register(ScreenShotPlugin);
           pluginManager2.register(OtherSitePlugin);

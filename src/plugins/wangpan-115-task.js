@@ -50,11 +50,18 @@ class WangPan115TaskPlugin extends BasePlugin {
         }));
     }
     async bus115Down() {
+        const $headerRow = $("#magnet-table tr").first();
         $("#magnet-table tr").each(((i, row) => {
+            if (row === $headerRow[0]) return;
             const magnetLink = $(row).find("td:nth-child(1) a").attr("href");
             if (magnetLink && magnetLink.includes("magnet:")) {
                 const actionCell = $("<td>").addClass("action-cell");
-                $("<button>").text("115离线下载").addClass("button is-info is-small").click((async event => {
+                $("<button>").text("验车").addClass("button is-small").attr("style", "background-color:#2b6cb0 !important;color:#fff !important;border:none !important;margin-right:4px;cursor:pointer;border-radius:4px;font-size:12px;padding:2px 8px;").click((event => {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    this.getBean("MagnetHubPlugin").checkWhatslink(magnetLink);
+                })).appendTo(actionCell);
+                $("<button>").text("115离线下载").addClass("button is-small").attr("style", "background-color:#4a90e2 !important;color:#fff !important;border:none !important;cursor:pointer;border-radius:4px;font-size:12px;padding:2px 8px;").click((async event => {
                     event.stopPropagation();
                     event.preventDefault();
                     let loadObj = loading();
@@ -67,15 +74,12 @@ class WangPan115TaskPlugin extends BasePlugin {
                         loadObj.close();
                     }
                 })).appendTo(actionCell);
-                $("<button>").text("验车").addClass("button is-info is-small").click((event => {
-                    event.stopPropagation();
-                    event.preventDefault();
-                    this.getBean("MagnetHubPlugin").checkWhatslink(magnetLink);
-                })).appendTo(actionCell);
                 $(row).append(actionCell);
             }
         }));
-        $("#magnet-table tbody").length > 0 && $("#magnet-table tbody tr").append($("<td>").text("操作"));
+        if ($headerRow.find("td, th").last().text().trim() !== "操作") {
+            $headerRow.append($("<td>").text("操作"));
+        }
     }
     async getSavePathId(nyName) {
         let savePath115 = await storageManager.getSetting("savePath115", "云下载");
