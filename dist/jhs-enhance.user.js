@@ -802,6 +802,23 @@ System.register("./__entry.js", ['jquery', 'localforage', 'toastify-js', 'blueim
     color: #f40 !important;
   }
 
+  #magnets-content .item[data-rank] {
+    position: relative !important;
+  }
+  #magnets-content .item[data-rank] .buttons {
+    position: absolute !important;
+    bottom: 0;
+    right: 0;
+    margin: 0 !important;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  #magnets-content .item[data-rank] .name {
+    display: block;
+    padding-right: 260px;
+  }
+
   .msf-overlay {
     position: fixed;
     inset: 0;
@@ -12495,12 +12512,12 @@ ${err.stack}` : "");
               if ($downloadBtn.length) {
                   $downloadBtn.css("margin-right", parseInt($downloadBtn.css("margin-right")) + 3 + "px");
               }
-              $("<button>").text("验车").addClass("button is-info is-small").click(((event) => {
+              $("<button>").text("验车").addClass("button is-small").attr("style", "background-color:#2b6cb0 !important;color:#fff !important;border:none !important;cursor:pointer;border-radius:4px;font-size:12px;padding:2px 8px;").click(((event) => {
                   event.stopPropagation();
                   event.preventDefault();
                   this.getBean("MagnetHubPlugin").checkWhatslink(magnet);
               })).appendTo($copyBtn.parent());
-              $("<button>").text("115离线下载").addClass("button is-info is-small").click((async (event) => {
+              $("<button>").text("115离线下载").addClass("button is-small").attr("style", "background-color:#4a90e2 !important;color:#fff !important;border:none !important;cursor:pointer;border-radius:4px;font-size:12px;padding:2px 8px;").click((async (event) => {
               event.stopPropagation();
               event.preventDefault();
               let loadObj = loading();

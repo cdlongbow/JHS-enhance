@@ -587,6 +587,23 @@ const mainCss = `
     color: #f40 !important;
   }
 
+  #magnets-content .item[data-rank] {
+    position: relative !important;
+  }
+  #magnets-content .item[data-rank] .buttons {
+    position: absolute !important;
+    bottom: 0;
+    right: 0;
+    margin: 0 !important;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  #magnets-content .item[data-rank] .name {
+    display: block;
+    padding-right: 260px;
+  }
+
   .msf-overlay {
     position: fixed;
     inset: 0;
