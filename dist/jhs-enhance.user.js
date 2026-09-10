@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         JHS-enhance
 // @namespace    JHS-enhance
-// @version      3.3.13
+// @version      3.3.14
 // @author       xiebro,fireinrain
 // @description  Jav-鉴黄师 增强脚本。列表页：作品状态标签、一键筛选、新作品检测、演员黑名单过滤；详情页：磁力链接高亮、DMM 多画质预览视频、标题翻译、整合字幕搜索（迅雷+SubTitleCat）并支持 115 直传、多源预览图（javfree/projectjav/javstore）含来源切换；数据：115 网盘目录匹配与多目录选择、云盘备份/恢复、跨 Tab 同步；其他：自动翻页、分类折叠、Top250、以图识图、热门榜单、评论查看、相关清单。支持 JavDB / JavBus / JavSee / SeeJav / FC2 / JavTrailers
 // @license      MIT
@@ -11534,6 +11534,8 @@ ${err.stack}` : "");
         }
 
           searchEngine($container, $sortSelect, engine, keyword) {
+              this.currentEngine = engine;
+              this.currentKeyword = keyword;
           $container.html(`<div class="magnet-loading">正在从 ${engine.name} 搜索 "${keyword}"...</div>`);
           const cacheKey = `${engine.name}_${keyword}`;
           sessionStorage.getItem(cacheKey);
@@ -11551,17 +11553,26 @@ ${err.stack}` : "");
                                   $sortSelect.prop("disabled", results.length === 0);
                                   this.displayResults($container, results, engine.name);
                               } catch (e) {
-                                  $container.html(`<div class="magnet-error">解析 ${engine.name} 结果失败: ${e.message}</div>`);
+                                  this.showError($container, `解析 ${engine.name} 结果失败: ${e.message}`);
                               }
                           },
                           onerror: (error) => {
-                              $container.html(`<div class="magnet-error">从 ${engine.name} 获取数据失败: ${error.statusText}</div>`);
+                              this.showError($container, `从 ${engine.name} 获取数据失败: ${error.statusText}`);
                           }
                       }));
                   }
                   if (engine.parseJson) {
                       engine.parseJson.call(this, $container, $sortSelect, engine, keyword, cacheKey);
                   }
+              }));
+          }
+
+          showError($container, message) {
+              $container.html(`<div class="magnet-error">${message} <a id="retrySearch" href="#">🔄 刷新</a></div>`);
+              const $select = $container.closest(".magnet-container").find(".magnet-sort-select");
+              $container.find("#retrySearch").on("click", ((e) => {
+                  e.preventDefault();
+                  this.searchEngine($container, $select, this.currentEngine, this.currentKeyword);
               }));
           }
         displayResults($container, results, engineName) {
@@ -11958,11 +11969,11 @@ ${err.stack}` : "");
                   $sortSelect.prop("disabled", results.length === 0);
                 _this.displayResults($container, results, engine.name);
               } catch (e) {
-                $container.html(`<div class="magnet-error">解析 ${engine.name} 结果失败: ${e.message}</div>`);
+                  _this.showError($container, `解析 ${engine.name} 结果失败: ${e.message}`);
               }
             },
             onerror: (error) => {
-              $container.html(`<div class="magnet-error">从 ${engine.name} 获取数据失败: ${error.statusText}</div>`);
+                _this.showError($container, `从 ${engine.name} 获取数据失败: ${error.statusText}`);
             }
           });
         }

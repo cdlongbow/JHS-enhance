@@ -580,6 +580,8 @@ class MagnetHubPlugin extends BasePlugin {
     }
 
     searchEngine($container, $sortSelect, engine, keyword) {
+        this.currentEngine = engine;
+        this.currentKeyword = keyword;
         $container.html(`<div class="magnet-loading">正在从 ${engine.name} 搜索 "${keyword}"...</div>`);
         const cacheKey = `${engine.name}_${keyword}`;
         sessionStorage.getItem(cacheKey);
@@ -597,17 +599,26 @@ class MagnetHubPlugin extends BasePlugin {
                             $sortSelect.prop("disabled", results.length === 0);
                             this.displayResults($container, results, engine.name);
                         } catch (e) {
-                            $container.html(`<div class="magnet-error">解析 ${engine.name} 结果失败: ${e.message}</div>`);
+                            this.showError($container, `解析 ${engine.name} 结果失败: ${e.message}`);
                         }
                     },
                     onerror: error => {
-                        $container.html(`<div class="magnet-error">从 ${engine.name} 获取数据失败: ${error.statusText}</div>`);
+                        this.showError($container, `从 ${engine.name} 获取数据失败: ${error.statusText}`);
                     }
                 }));
             }
             if (engine.parseJson) {
                 engine.parseJson.call(this, $container, $sortSelect, engine, keyword, cacheKey);
             }
+        }));
+    }
+
+    showError($container, message) {
+        $container.html(`<div class="magnet-error">${message} <a id="retrySearch" href="#">🔄 刷新</a></div>`);
+        const $select = $container.closest(".magnet-container").find(".magnet-sort-select");
+        $container.find("#retrySearch").on("click", (e => {
+            e.preventDefault();
+            this.searchEngine($container, $select, this.currentEngine, this.currentKeyword);
         }));
     }
 
@@ -1000,11 +1011,11 @@ class MagnetHubPlugin extends BasePlugin {
                     $sortSelect.prop("disabled", results.length === 0);
                     _this.displayResults($container, results, engine.name);
                 } catch (e) {
-                    $container.html(`<div class="magnet-error">解析 ${engine.name} 结果失败: ${e.message}</div>`);
+                    _this.showError($container, `解析 ${engine.name} 结果失败: ${e.message}`);
                 }
             },
             onerror: error => {
-                $container.html(`<div class="magnet-error">从 ${engine.name} 获取数据失败: ${error.statusText}</div>`);
+                _this.showError($container, `从 ${engine.name} 获取数据失败: ${error.statusText}`);
             }
         });
     }
